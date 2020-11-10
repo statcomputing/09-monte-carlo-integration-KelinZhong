@@ -1,0 +1,291 @@
+---
+title: "homework9"
+author: "Kelin Zhong"
+date: "2020/11/5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercise 7.5.1
+## 1
+
+### a
+
+```{R}
+h <- function(x){
+  x^2
+}
+
+g <- function(x){
+  dnorm(x, mean = 0, sd = 1)
+}
+
+f <- function(x){
+  (x^2 * exp(-((x-2)^2)/2))/(5*sqrt(2*pi))
+}
+
+rg <- function(n) {
+  rnorm(n, mean = 0, sd = 1)
+}
+
+
+isAppr <- function(n, h, f, g, rg){
+  x <- rg(n)
+  m <- mean(h(x) * f(x)/g(x))
+}
+
+mysummary <- function(nrep, n, h, f, g, rg){
+  sim <- replicate(nrep,isAppr(n, h, f, g, rg))
+  c(Eh = mean(sim), Varh = sd(sim)^2)
+}
+
+
+
+mysummary(100, 1000, h, f, g, rg)
+
+
+mysummary(100, 10000, h, f, g, rg)
+
+
+mysummary(100, 50000, h, f, g, rg)
+
+
+```
+
+
+
+
+### b
+\[
+\begin{aligned}
+g(x) \propto |h(x)|f(x) \\
+\propto x^{4}e^{-\frac{(x-2)^{2}}{2}}
+\end{aligned}
+\]
+Therefore, $\Gamma(5,2)$ will be an appropriate distribution.
+
+
+### c
+```{R}
+g1 <- function(x){
+  dgamma(x, shape = 5, scale = 2)
+}
+
+rg1 <- function(n){
+  rgamma(n, shape = 5, scale = 2)
+}
+
+mysummary(100, 1000, h, f, g1, rg1)
+
+
+mysummary(100, 10000, h, f, g1, rg1)
+
+
+mysummary(100, 50000, h, f, g1, rg1)
+
+```
+
+
+
+### d
+From part (a) and part (c), we notice that the estimations of $E(x^{2})$ is much more stable than when we use $g(x)$ obtained in part(b). Further, $Var(x^{2})$ is much smaller when we use the $g(x)$ obtained in part (b). Besides, when same replication, as the sample size becomes larger, the $Var(x^{2})$ becomes smaller and $E(x^{2})$ becomes more stable.
+
+
+# Exercise 7.5.2
+
+## 2
+
+### a
+$W(t)$ is a Wiener process, i.e. $W(t)\sim N(0,t)$ for all t.
+\[
+\begin{aligned}
+\frac{dS(t)}{S(t)} =& rdt + \sigma dW(t) \\
+S(t) =& S(0)exp[(r-\frac{\sigma^{2}}{2})t + \sigma W(t)]
+\end{aligned}
+\]
+Let $\Delta_{t} = t_{i} - t_{i-1}$, then
+\[
+\begin{aligned}
+S(t_{i}) =& S(t_{i-1})exp[(r-\frac{\sigma^{2}}{2})(t_{i} - t_{i-1}) + \sigma W(t_{i}-t_{i-1})] \\
+S(t_{i}) =& S(t_{i-1})exp[(r-\frac{\sigma^{2}}{2})\Delta_{t} + \sigma\sqrt{\Delta_{t}}Z]
+\end{aligned}
+\]
+where $Z \sim N(0,1)$.
+
+Therefore, we may use the recursive equation to obtain $S(t)$ with $S(0) = 1$ and $r = 0.05$
+\[
+\begin{aligned}
+S(t) =& S(0)exp[(r-\frac{\sigma^{2}}{2})t + \sigma\sqrt{t}Z] \\
+=& exp[(0.05 -\frac{\sigma^{2}}{2})t + \sigma\sqrt{t}Z]
+\end{aligned}
+\]
+
+```{R}
+St <- function(t,sigma){
+  z <- rnorm(1, mean = 0, sd = 1)
+  stsim <- exp((0.05 - sigma^2/2)*t + sigma*sqrt(t)*z)
+  return(stsim)
+}
+
+```
+
+
+### b
+```{R}
+St_rep <- function(nrep, T_set, sigma_set){
+  replicate(nrep,St(T_set, sigma_set))
+}
+
+
+PA <- function(n, T_set, sigma_set, K_set){
+  iT <- seq(0, T_set, length.out = n)
+  SA <- mean(St(iT, sigma_set))
+  SAK <- ifelse(SA - K_set > 0, SA - K_set ,0)
+  profit <- exp(-0.05*T_set)*SAK
+  return(profit)
+}
+
+PA_rep <- function(nrep, n, T_set, sigma_set, K_set){
+  replicate(nrep,PA(n, T_set, sigma_set, K_set))
+}
+
+PE <- function(n, T_set, sigma_set, K_set){
+  St_set  <- St(T_set, sigma_set)
+  SEK <- ifelse(St_set - K_set > 0, St_set - K_set, 0) 
+  profit <- exp(-0.05*T_set)*SEK
+  return(profit)
+}
+
+PE_rep <- function(nrep, n, T_set, sigma_set, K_set){
+  replicate(nrep,PE(n, T_set, sigma_set, K_set))
+}
+
+
+library(EnvStats)
+
+PG <- function(n, T_set, sigma_set, K_set){
+  iT <- seq(0, T_set, length.out = n)
+  SG <- geoMean(St(iT, sigma_set))
+  SGK <- ifelse(SG - K_set > 0, SG - K_set ,0)
+  profit <- exp(-0.05*T_set)*SGK
+  return(profit)
+}
+
+PG_rep <- function(nrep, n, T_set, sigma_set, K_set){
+  replicate(nrep,PG(n, T_set, sigma_set, K_set))
+}
+
+
+sig0 = 0.5
+T0 = 1
+K = c(1.1, 1.2, 1.3, 1.4, 1.5)
+
+COAT1 <- numeric()
+COAE1 <- numeric()
+COAG1 <- numeric()
+i <- 1
+ST1 <- St_rep(5000, T0, sig0)
+
+while(i <= length(K)){
+  COAT1[i] <- cor(PA_rep(5000,12,T0,sig0,K[i]),ST1)
+  COAE1[i] <- cor(PA_rep(5000,12,T0,sig0,K[i]),PE_rep(5000,12,T0,sig0,K[i]))
+  COAG1[i] <- cor(PA_rep(5000,12,T0,sig0,K[i]),PG_rep(5000,12,T0,sig0,K[i]))
+  i <- i+1
+}
+
+plot(K,COAT1, type = "l" , main = "Correlation between PA and St")
+plot(K,COAE1, type = "l" , main = "Correlation between PA and PE")
+plot(K,COAG1, type = "l" , main = "Correlation between PA and PG")
+
+
+```
+
+
+### c
+```{R}
+sig = c(0.2,0.3,0.4,0.5)
+T0 = 1
+K0 = 1.5
+
+COAT2 <- numeric()
+COAE2 <- numeric()
+COAG2 <- numeric()
+i <- 1
+
+
+while(i <= length(sig)){
+  COAT2[i] <- cor(PA_rep(5000,12,T0,sig[i],K0),St_rep(5000,T0,sig[i]))
+  COAE2[i] <- cor(PA_rep(5000,12,T0,sig[i],K0),PE_rep(5000,12,T0,sig[i],K0))
+  COAG2[i] <- cor(PA_rep(5000,12,T0,sig[i],K0),PG_rep(5000,12,T0,sig[i],K0))
+  i <- i+1
+}
+
+plot(sig,COAT2, type = "l" , main = "Correlation between PA and St")
+plot(sig,COAE2, type = "l" , main = "Correlation between PA and PE")
+plot(sig,COAG2, type = "l" , main = "Correlation between PA and PG")
+
+```
+
+
+
+### d
+```{R}
+sig0 = 0.5
+Tt = c(0.4,0.7,1,1.3,1.6)
+K0 = 1.5
+
+COAT3 <- numeric()
+COAE3 <- numeric()
+COAG3 <- numeric()
+i <- 1
+
+
+while(i <= length(Tt)){
+  COAT3[i] <- cor(PA_rep(5000,12,Tt[i],sig0,K0),St_rep(5000,Tt[i],sig0))
+  COAE3[i] <- cor(PA_rep(5000,12,Tt[i],sig0,K0),PE_rep(5000,12,Tt[i],sig0,K0))
+  COAG3[i] <- cor(PA_rep(5000,12,Tt[i],sig0,K0),PG_rep(5000,12,Tt[i],sig0,K0))
+  i <- i+1
+}
+
+plot(Tt,COAT3, type = "l" , main = "Correlation between PA and St")
+plot(Tt,COAE3, type = "l" , main = "Correlation between PA and PE")
+plot(Tt,COAG3, type = "l" , main = "Correlation between PA and PG")
+
+
+```
+
+
+### e
+```{R}
+sig0 = 0.4
+T0 = 1
+K0 = 1.5
+
+
+PA_cv <- function(nrep1, n,T_set, sig_set, K_set, theta_true, PA_set){
+  theta <- PG_rep(nrep1, n, T_set, sig_set, K_set)
+  theta_hat <- mean(theta)
+  b <- cov(PA_set,theta)/var(theta)
+  m_cv <- mean(PA_set) - b*(theta_hat - theta_true) 
+  return(m_cv)
+}
+
+PA_cv_rep <- function(nrep1, nrep2, n, T_set, sig_set, K_set, theta_set, PA_set){
+  mcv <- replicate(nrep2,PA_cv(nrep1, n,T_set, sig_set, K_set, theta_set, PA_set))
+  return(mcv)
+}
+
+
+tht <- PG(12, T0, sig0, K0)
+
+PA_free <- PA_rep(1000,12,T0,sig0,K0)
+PA_control <- PA_cv_rep(1000 ,1000, 12, T0, sig0, K0, tht, PA_free)
+
+sd(PA_free)
+sd(PA_control)
+
+```
+From the result, we notice that the SD of the estimator with control is much more smaller that that without control.
